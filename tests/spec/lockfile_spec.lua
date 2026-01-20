@@ -1,0 +1,254 @@
+describe("lockfile", function()
+  local lockfile
+  local config
+  local cache
+
+  local temp_dir
+  local lockfile_path
+
+  before_each(function()
+    -- Reset modules
+    package.loaded["mason-lock.lockfile"] = nil
+    package.loaded["mason-lock.config"] = nil
+    package.loaded["mason-lock.cache"] = nil
+    package.loaded["mason-lock.notify"] = nil
+
+    -- Clear mock registry
+    mock_registry._clear()
+
+    temp_dir = test_helpers.create_temp_dir()
+    lockfile_path = temp_dir .. "/mason-lock.json"
+
+    config = require("mason-lock.config")
+    config.lockfile_path = lockfile_path
+    config.lockfile_scope = "all"
+    config.ensure_installed = {}
+    config._restore_in_progress = false
+
+    cache = require("mason-lock.cache")
+    lockfile = require("mason-lock.lockfile")
+  end)
+
+  after_each(function()
+    test_helpers.cleanup_temp_dir(temp_dir)
+  end)
+
+  describe("read", function()
+    it("should read and parse lockfile", function()
+      local content = '{"lua-language-server": "3.6.0"}'
+      test_helpers.write_file(lockfile_path, content)
+
+      local data = lockfile.read()
+      assert.are.equal("3.6.0", data["lua-language-server"])
+    end)
+
+    it("should throw error for non-existent file", function()
+      assert.has_error(function()
+        lockfile.read()
+      end)
+    end)
+  end)
+
+  describe("read_async", function()
+    it("should read lockfile asynchronously", function()
+      local content = '{"stylua": "0.18.0"}'
+      test_helpers.write_file(lockfile_path, content)
+
+      local result = nil
+      local err = nil
+      local done = false
+
+      lockfile.read_async(function(e, data)
+        err = e
+        result = data
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+      assert.is_nil(err)
+      assert.are.equal("0.18.0", result["stylua"])
+    end)
+
+    it("should return error for non-existent file", function()
+      local err = nil
+      local done = false
+
+      lockfile.read_async(function(e, _data)
+        err = e
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+      assert.is_not_nil(err)
+    end)
+  end)
+
+  describe("write", function()
+    it("should write lockfile with installed packages", function()
+      mock_registry._add_mock_package("lua-language-server", "3.6.0")
+      mock_registry._add_mock_package("stylua", "0.18.0")
+
+      lockfile.write()
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_not_nil(content)
+      assert.is_truthy(string.find(content, "lua%-language%-server"))
+      assert.is_truthy(string.find(content, "stylua"))
+    end)
+
+    it("should not write during restore", function()
+      config._restore_in_progress = true
+      mock_registry._add_mock_package("package", "1.0.0")
+
+      lockfile.write()
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_nil(content)
+    end)
+
+    it("should update cache after write", function()
+      mock_registry._add_mock_package("package", "1.0.0")
+
+      lockfile.write()
+
+      assert.is_true(cache.is_loaded())
+      assert.are.equal("1.0.0", cache.get_version("package"))
+    end)
+  end)
+
+  describe("write_async", function()
+    it("should write lockfile asynchronously", function()
+      mock_registry._add_mock_package("lua-language-server", "3.6.0")
+
+      local err = nil
+      local done = false
+
+      lockfile.write_async(function(e)
+        err = e
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+      assert.is_nil(err)
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_not_nil(content)
+      assert.is_truthy(string.find(content, "lua%-language%-server"))
+    end)
+
+    it("should skip write during restore", function()
+      config._restore_in_progress = true
+      mock_registry._add_mock_package("package", "1.0.0")
+
+      local done = false
+      lockfile.write_async(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_nil(content)
+    end)
+
+    it("should update cache after async write", function()
+      mock_registry._add_mock_package("package", "2.0.0")
+
+      local done = false
+      lockfile.write_async(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+
+      assert.is_true(cache.is_loaded())
+      assert.are.equal("2.0.0", cache.get_version("package"))
+    end)
+  end)
+
+  describe("schedule_write", function()
+    it("should debounce multiple writes", function()
+      mock_registry._add_mock_package("package", "1.0.0")
+
+      local call_count = 0
+      local original_write_async = lockfile.write_async
+      lockfile.write_async = function(callback)
+        call_count = call_count + 1
+        original_write_async(callback)
+      end
+
+      -- Schedule multiple writes rapidly
+      lockfile.schedule_write()
+      lockfile.schedule_write()
+      lockfile.schedule_write()
+
+      -- Wait for debounce to complete
+      vim.wait(700)
+
+      -- Should only have called write_async once
+      assert.are.equal(1, call_count)
+
+      lockfile.write_async = original_write_async
+    end)
+  end)
+
+  describe("restore_async", function()
+    it("should restore packages from lockfile", function()
+      local content = '{"lua-language-server": "3.6.0"}'
+      test_helpers.write_file(lockfile_path, content)
+
+      mock_registry._add_mock_package("lua-language-server", "3.5.0")
+
+      local err = nil
+      local done = false
+
+      lockfile.restore_async(function(e)
+        err = e
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 2000))
+      assert.is_nil(err)
+    end)
+
+    it("should return error for missing lockfile", function()
+      local err = nil
+      local done = false
+
+      lockfile.restore_async(function(e)
+        err = e
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+      assert.is_not_nil(err)
+    end)
+
+    it("should handle empty lockfile", function()
+      test_helpers.write_file(lockfile_path, "{}")
+
+      local done = false
+      lockfile.restore_async(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+    end)
+  end)
+end)
