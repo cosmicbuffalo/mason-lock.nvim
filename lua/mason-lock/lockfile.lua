@@ -12,13 +12,6 @@ local _debounce_delay = 500 -- milliseconds
 
 local uv = vim.uv or vim.loop
 
-local function read_file_sync(file)
-  local fd = assert(io.open(file, "r"))
-  local data = fd:read("*a")
-  fd:close()
-  return data
-end
-
 local function sort_entries(entries)
   table.sort(entries, function(a, b)
     return a.name:lower() < b.name:lower()
@@ -52,16 +45,9 @@ local function is_in_ensure_installed(package_name)
   return false
 end
 
---- Read lockfile synchronously (kept for backwards compatibility)
----@return table The parsed lockfile data
-function M.read()
-  local content = read_file_sync(config.lockfile_path)
-  return vim.json.decode(content)
-end
-
 --- Read lockfile asynchronously
 ---@param callback fun(err: string|nil, data: table|nil) Called with error or data
-function M.read_async(callback)
+function M.read(callback)
   async_io.read_file(config.lockfile_path, function(err, data)
     if err then
       callback(err, nil)
@@ -115,65 +101,9 @@ local function collect_entries(callback)
   callback(entries)
 end
 
---- Write lockfile synchronously (deprecated, kept for backwards compatibility)
-function M.write()
-  if config._restore_in_progress then
-    return
-  end
-
-  local packages = registry.get_installed_packages()
-
-  local entries = {}
-  for _, package in pairs(packages) do
-    if package:is_installed() == false then
-      table.insert(entries, nil)
-      return
-    end
-
-    -- Filter based on lockfile_scope
-    if config.lockfile_scope == "ensure_installed" then
-      if is_in_ensure_installed(package.name) then
-        table.insert(entries, {
-          name = package.name,
-          version = package:get_installed_version(),
-        })
-      end
-    else
-      table.insert(entries, {
-        name = package.name,
-        version = package:get_installed_version(),
-      })
-    end
-  end
-
-  -- remove anything that failed
-  for i, package in pairs(entries) do
-    if package == nil then
-      entries[i] = nil
-    end
-  end
-
-  -- sort alphabetically
-  entries = sort_entries(entries)
-
-  -- write to file
-  local f = assert(io.open(config.lockfile_path, "wb"))
-  f:write(format(entries))
-  f:close()
-
-  -- Update cache
-  local cache_data = {}
-  for _, entry in ipairs(entries) do
-    cache_data[entry.name] = entry.version
-  end
-  cache.set(cache_data)
-
-  notify.notify("Wrote Mason lockfile")
-end
-
 --- Write lockfile asynchronously
 ---@param callback fun(err: string|nil)|nil Optional callback
-function M.write_async(callback)
+function M.write(callback)
   if config._restore_in_progress then
     if callback then
       callback(nil)
@@ -229,62 +159,15 @@ function M.schedule_write(callback)
         uv.close(_debounce_timer)
         _debounce_timer = nil
       end
-      M.write_async(callback)
+      M.write(callback)
     end)
   end)
 end
 
---- Restore packages from lockfile synchronously (deprecated, kept for backwards compatibility)
-function M.restore()
-  local lock_data = {}
-  local ok, lockfile_str = pcall(read_file_sync, config.lockfile_path)
-  if not ok then
-    notify.notify("Mason lockfile does not exist", vim.log.levels.ERROR)
-    return
-  end
-
-  lock_data = vim.json.decode(lockfile_str)
-
-  config._restore_in_progress = true
-
-  local ui = require("mason.ui")
-  ui.open()
-
-  local package_names = {}
-  local finished_handles = {}
-
-  for package_name, package_version in pairs(lock_data) do
-    table.insert(package_names, package_name)
-    local pkg = registry.get_package(package_name)
-    local handle = pkg:install({
-      version = package_version,
-    })
-
-    handle:once("closed", function()
-      table.insert(finished_handles, package_name)
-    end)
-  end
-
-  local happy, status = vim.wait(1000 * 60, function()
-    return #finished_handles == #package_names
-  end, 300)
-
-  if not happy then
-    if status == -1 then
-      notify.notify("Timed out waiting for Mason package install", vim.log.levels.ERROR)
-    elseif status == -2 then
-      notify.notify("Wait on Mason package install was interrupted", vim.log.levels.ERROR)
-    end
-  end
-
-  config._restore_in_progress = false
-  notify.notify("Restored Mason package versions from lockfile")
-end
-
 --- Restore packages from lockfile asynchronously
 ---@param callback fun(err: string|nil)|nil Optional callback
-function M.restore_async(callback)
-  M.read_async(function(err, lock_data)
+function M.restore(callback)
+  M.read(function(err, lock_data)
     if err then
       notify.notify("Mason lockfile does not exist or is invalid", vim.log.levels.ERROR)
       if callback then

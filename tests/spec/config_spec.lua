@@ -101,14 +101,9 @@ describe("config", function()
       assert.is_nil(config.get_locked_version("nonexistent"))
     end)
 
-    it("should fall back to sync read when cache not loaded", function()
-      config.lockfile_path = lockfile_path
+    it("should return nil for unknown package", function()
       config.ensure_installed = {}
-      -- Don't load cache
-      test_helpers.write_file(lockfile_path, '{"package": "1.0.0"}')
-
-      local version = config.get_locked_version("package")
-      assert.are.equal("1.0.0", version)
+      assert.is_nil(config.get_locked_version("package"))
     end)
   end)
 end)

@@ -34,22 +34,6 @@ describe("lockfile", function()
   end)
 
   describe("read", function()
-    it("should read and parse lockfile", function()
-      local content = '{"lua-language-server": "3.6.0"}'
-      test_helpers.write_file(lockfile_path, content)
-
-      local data = lockfile.read()
-      assert.are.equal("3.6.0", data["lua-language-server"])
-    end)
-
-    it("should throw error for non-existent file", function()
-      assert.has_error(function()
-        lockfile.read()
-      end)
-    end)
-  end)
-
-  describe("read_async", function()
     it("should read lockfile asynchronously", function()
       local content = '{"stylua": "0.18.0"}'
       test_helpers.write_file(lockfile_path, content)
@@ -58,7 +42,7 @@ describe("lockfile", function()
       local err = nil
       local done = false
 
-      lockfile.read_async(function(e, data)
+      lockfile.read(function(e, data)
         err = e
         result = data
         done = true
@@ -75,7 +59,7 @@ describe("lockfile", function()
       local err = nil
       local done = false
 
-      lockfile.read_async(function(e, _data)
+      lockfile.read(function(e, _data)
         err = e
         done = true
       end)
@@ -88,46 +72,13 @@ describe("lockfile", function()
   end)
 
   describe("write", function()
-    it("should write lockfile with installed packages", function()
-      mock_registry._add_mock_package("lua-language-server", "3.6.0")
-      mock_registry._add_mock_package("stylua", "0.18.0")
-
-      lockfile.write()
-
-      local content = test_helpers.read_file(lockfile_path)
-      assert.is_not_nil(content)
-      assert.is_truthy(string.find(content, "lua%-language%-server"))
-      assert.is_truthy(string.find(content, "stylua"))
-    end)
-
-    it("should not write during restore", function()
-      config._restore_in_progress = true
-      mock_registry._add_mock_package("package", "1.0.0")
-
-      lockfile.write()
-
-      local content = test_helpers.read_file(lockfile_path)
-      assert.is_nil(content)
-    end)
-
-    it("should update cache after write", function()
-      mock_registry._add_mock_package("package", "1.0.0")
-
-      lockfile.write()
-
-      assert.is_true(cache.is_loaded())
-      assert.are.equal("1.0.0", cache.get_version("package"))
-    end)
-  end)
-
-  describe("write_async", function()
     it("should write lockfile asynchronously", function()
       mock_registry._add_mock_package("lua-language-server", "3.6.0")
 
       local err = nil
       local done = false
 
-      lockfile.write_async(function(e)
+      lockfile.write(function(e)
         err = e
         done = true
       end)
@@ -147,7 +98,7 @@ describe("lockfile", function()
       mock_registry._add_mock_package("package", "1.0.0")
 
       local done = false
-      lockfile.write_async(function()
+      lockfile.write(function()
         done = true
       end)
 
@@ -159,11 +110,11 @@ describe("lockfile", function()
       assert.is_nil(content)
     end)
 
-    it("should update cache after async write", function()
+    it("should update cache after write", function()
       mock_registry._add_mock_package("package", "2.0.0")
 
       local done = false
-      lockfile.write_async(function()
+      lockfile.write(function()
         done = true
       end)
 
@@ -181,10 +132,10 @@ describe("lockfile", function()
       mock_registry._add_mock_package("package", "1.0.0")
 
       local call_count = 0
-      local original_write_async = lockfile.write_async
-      lockfile.write_async = function(callback)
+      local original_write = lockfile.write
+      lockfile.write = function(callback)
         call_count = call_count + 1
-        original_write_async(callback)
+        original_write(callback)
       end
 
       -- Schedule multiple writes rapidly
@@ -195,14 +146,14 @@ describe("lockfile", function()
       -- Wait for debounce to complete
       vim.wait(700)
 
-      -- Should only have called write_async once
+      -- Should only have called write once
       assert.are.equal(1, call_count)
 
-      lockfile.write_async = original_write_async
+      lockfile.write = original_write
     end)
   end)
 
-  describe("restore_async", function()
+  describe("restore", function()
     it("should restore packages from lockfile", function()
       local content = '{"lua-language-server": "3.6.0"}'
       test_helpers.write_file(lockfile_path, content)
@@ -212,7 +163,7 @@ describe("lockfile", function()
       local err = nil
       local done = false
 
-      lockfile.restore_async(function(e)
+      lockfile.restore(function(e)
         err = e
         done = true
       end)
@@ -227,7 +178,7 @@ describe("lockfile", function()
       local err = nil
       local done = false
 
-      lockfile.restore_async(function(e)
+      lockfile.restore(function(e)
         err = e
         done = true
       end)
@@ -242,7 +193,7 @@ describe("lockfile", function()
       test_helpers.write_file(lockfile_path, "{}")
 
       local done = false
-      lockfile.restore_async(function()
+      lockfile.restore(function()
         done = true
       end)
 

@@ -7,13 +7,13 @@ local M = {}
 
 local function setup_user_commands()
   vim.api.nvim_create_user_command("MasonLock", function()
-    lockfile.write_async()
+    lockfile.write()
   end, {
     desc = "Write current package versions to the Mason lockfile",
   })
 
   vim.api.nvim_create_user_command("MasonLockRestore", function()
-    lockfile.restore_async()
+    lockfile.restore()
   end, {
     desc = "Re-install Mason packages with the version specified in the lockfile",
   })
@@ -37,29 +37,25 @@ local function setup_registry_listeners()
 end
 
 local function preload_cache()
-  -- Preload lockfile cache asynchronously
   cache.load(config.lockfile_path, function(err, _data)
     if err then
       -- Silently ignore - lockfile may not exist yet
       return
     end
-    -- Cache is now loaded and ready for use
   end)
 end
 
 function M.setup(cfg)
   config.setup(cfg)
+  preload_cache()
   monkeypatch.patch_package_install()
   setup_user_commands()
   setup_registry_listeners()
-  preload_cache()
 end
 
 -- Expose public API
 M.write_lockfile = lockfile.write
-M.write_lockfile_async = lockfile.write_async
 M.restore_from_lockfile = lockfile.restore
-M.restore_from_lockfile_async = lockfile.restore_async
 M.ensure_installed = function()
   return config.ensure_installed
 end

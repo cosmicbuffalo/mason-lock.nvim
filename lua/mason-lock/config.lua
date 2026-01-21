@@ -55,30 +55,16 @@ function M.get_pinned_version(package_name)
   return nil
 end
 
---- Get locked version for a package, using cache when available
 ---@param package_name string The package name
----@return string|nil The locked version, or nil if not found
+---@return string|nil version The locked version or nil
 function M.get_locked_version(package_name)
-  -- First check if package is pinned in config
   local pinned_version = M.get_pinned_version(package_name)
   if pinned_version then
     return pinned_version
   end
 
-  -- Try to get from cache first
   local cache = require("mason-lock.cache")
-  if cache.is_loaded() then
-    return cache.get_version(package_name)
-  end
-
-  -- Fallback to sync read if cache not loaded (edge case on very early startup)
-  local lockfile = require("mason-lock.lockfile")
-  local ok, lock_data = pcall(lockfile.read)
-  if ok and lock_data and lock_data[package_name] then
-    return lock_data[package_name]
-  end
-
-  return nil
+  return cache.get_version(package_name)
 end
 
 return M

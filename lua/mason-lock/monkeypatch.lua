@@ -1,5 +1,4 @@
 local config = require("mason-lock.config")
-local cache = require("mason-lock.cache")
 
 local M = {}
 
@@ -34,17 +33,17 @@ function M.patch_package_install()
 
       -- Force the pinned version
       opts.version = pinned_version
-    elseif not opts.version then
-      -- Only inject version if not already specified and not pinned
-      -- Try cache first for performance
-      local locked_version = cache.get_version(self.name)
-      if not locked_version and not cache.is_loaded() then
-        -- Fallback to config method if cache not loaded
-        locked_version = config.get_locked_version(self.name)
-      end
-      if locked_version then
-        opts.version = locked_version
-      end
+      return original_install(self, opts, callback)
+    end
+
+    -- If version already specified, use it directly
+    if opts.version then
+      return original_install(self, opts, callback)
+    end
+
+    local locked_version = config.get_locked_version(self.name)
+    if locked_version then
+      opts.version = locked_version
     end
 
     return original_install(self, opts, callback)

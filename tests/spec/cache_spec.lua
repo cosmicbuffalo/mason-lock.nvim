@@ -187,7 +187,7 @@ describe("cache", function()
       assert.is_nil(cache.get_version("nonexistent"))
     end)
 
-    it("should return nil when cache not loaded", function()
+    it("should return nil for unknown package", function()
       assert.is_nil(cache.get_version("package"))
     end)
   end)

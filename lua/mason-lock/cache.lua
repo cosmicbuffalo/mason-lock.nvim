@@ -93,12 +93,12 @@ function M.invalidate()
 end
 
 ---@param package_name string The package name
----@return string|nil The version, or nil if not found
+---@return string|nil version The locked version or nil
 function M.get_version(package_name)
-  if _cache and _cache[package_name] then
-    return _cache[package_name]
+  if not _loaded then
+    return nil
   end
-  return nil
+  return _cache and _cache[package_name] or nil
 end
 
 return M
