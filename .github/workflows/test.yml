@@ -56,13 +56,3 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
           args: --display-style=quiet lua/ tests/
-
-        # run: |
-        #   SELENE_URL=$(curl -sL https://api.github.com/repos/Kampfkarren/selene/releases/latest | grep -oP '"browser_download_url": "\K[^"]*selene-[0-9.]+-linux\.zip')
-        #   curl -L "$SELENE_URL" -o selene.zip
-        #   unzip selene.zip
-        #   chmod +x selene
-        #   sudo mv selene /usr/local/bin/
-
-      # - name: Run Selene
-      #   run: selene lua/ tests/
