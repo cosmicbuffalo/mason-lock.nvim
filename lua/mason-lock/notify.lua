@@ -30,6 +30,7 @@ function M.progress_start(title, message)
     local handle = fidget.progress.handle.create({
       title = title,
       message = message or "Starting...",
+      lsp_client = { name = "mason-lock.nvim" },
       percentage = 0,
     })
     return {
@@ -44,18 +45,18 @@ function M.progress_start(title, message)
       end,
       finish = function(self, finish_message)
         if self._fidget_handle then
+          if finish_message then
+            self._fidget_handle.message = finish_message
+          end
           self._fidget_handle:finish()
-        end
-        if finish_message then
-          M.notify(finish_message)
         end
       end,
       cancel = function(self, error_message)
         if self._fidget_handle then
+          if error_message then
+            self._fidget_handle.message = error_message
+          end
           self._fidget_handle:finish()
-        end
-        if error_message then
-          M.notify(error_message, vim.log.levels.ERROR)
         end
       end,
     }
@@ -86,7 +87,7 @@ end
 ---@param total_packages number Total number of packages to restore
 ---@return table A handle with update_progress(), finish(), and cancel() methods
 function M.restore_progress(total_packages)
-  local handle = M.progress_start("mason-lock", string.format("Restoring %d packages...", total_packages))
+  local handle = M.progress_start("Lockfile Restore", string.format("Restoring %d packages...", total_packages))
   local completed = 0
 
   return {
@@ -111,7 +112,7 @@ end
 --- Create a progress handle for write operations
 ---@return table A handle with finish() and cancel() methods
 function M.write_progress()
-  return M.progress_start("mason-lock", "Writing lockfile...")
+  return M.progress_start("Lockfile Write", "Writing lockfile...")
 end
 
 return M
