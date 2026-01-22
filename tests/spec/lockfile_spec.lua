@@ -22,7 +22,7 @@ describe("lockfile", function()
     config = require("mason-lock.config")
     config.lockfile_path = lockfile_path
     config.lockfile_scope = "all"
-    config.ensure_installed = {}
+    config.locked_packages = {}
     config.preserve_uninstalled = true
     config._restore_in_progress = false
 

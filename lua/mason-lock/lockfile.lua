@@ -34,8 +34,8 @@ local function format(entries)
   return table.concat(lines, "\n")
 end
 
-local function is_in_ensure_installed(package_name)
-  for _, pkg in ipairs(config.ensure_installed) do
+local function is_in_locked_packages(package_name)
+  for _, pkg in ipairs(config.locked_packages) do
     if type(pkg) == "string" and pkg == package_name then
       return true
     elseif type(pkg) == "table" and pkg[1] == package_name then
@@ -74,7 +74,7 @@ local function collect_entries(callback)
   for _, package in pairs(packages) do
     if package:is_installed() then
       -- Filter based on lockfile_scope
-      local should_include = config.lockfile_scope ~= "ensure_installed" or is_in_ensure_installed(package.name)
+      local should_include = config.lockfile_scope ~= "locked_packages" or is_in_locked_packages(package.name)
 
       if should_include then
         -- Get version - this should be synchronous for installed packages
@@ -93,26 +93,42 @@ local function collect_entries(callback)
   -- Preserve uninstalled entries from existing lockfile
   if config.preserve_uninstalled then
     local merge_existing = function(existing_data)
+      if config._debug_mode then
+        vim.notify("[mason-lock DEBUG] merge_existing called, existing_data: " .. vim.inspect(existing_data), vim.log.levels.DEBUG)
+        vim.notify("[mason-lock DEBUG] installed_names: " .. vim.inspect(installed_names), vim.log.levels.DEBUG)
+      end
       if existing_data then
         for pkg_name, pkg_version in pairs(existing_data) do
           if not installed_names[pkg_name] then
             -- Check lockfile_scope for uninstalled packages too
-            local should_include = config.lockfile_scope ~= "ensure_installed" or is_in_ensure_installed(pkg_name)
+            local should_include = config.lockfile_scope ~= "locked_packages" or is_in_locked_packages(pkg_name)
+            if config._debug_mode then
+              vim.notify("[mason-lock DEBUG] pkg: " .. pkg_name .. ", should_include: " .. tostring(should_include), vim.log.levels.DEBUG)
+            end
             if should_include then
               table.insert(entries, { name = pkg_name, version = pkg_version })
             end
           end
         end
       end
+      if config._debug_mode then
+        vim.notify("[mason-lock DEBUG] final entries: " .. vim.inspect(entries), vim.log.levels.DEBUG)
+      end
       entries = sort_entries(entries)
       callback(entries)
     end
 
+    if config._debug_mode then
+      vim.notify("[mason-lock DEBUG] cache.is_loaded(): " .. tostring(cache.is_loaded()), vim.log.levels.DEBUG)
+    end
     if cache.is_loaded() then
       merge_existing(cache.get())
     else
       -- Fallback: read lockfile directly
       M.read(function(err, data)
+        if config._debug_mode then
+          vim.notify("[mason-lock DEBUG] M.read fallback, err: " .. tostring(err), vim.log.levels.DEBUG)
+        end
         merge_existing(err and nil or data)
       end)
     end

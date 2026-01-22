@@ -21,8 +21,8 @@ This happens transparently - you don't need to change how you use Mason.
   "cosmicbuffalo/mason-lock.nvim",
   opts = {
     lockfile_path = vim.fn.stdpath("config") .. "/mason-lock.json", -- default
-    lockfile_scope = "ensure_installed", -- default: "ensure_installed", or "all"
-    ensure_installed = {
+    lockfile_scope = "locked_packages", -- default: "locked_packages", or "all"
+    locked_packages = {
       "shfmt",  -- unpinned: uses lockfile version or latest
       { "tree-sitter-cli", version = "v0.25.10" },  -- pinned
     },
@@ -41,15 +41,15 @@ Path to the lockfile where package versions are stored.
 
 ### `lockfile_scope`
 
-**Type**: `"ensure_installed" | "all"`
-**Default**: `"ensure_installed"`
+**Type**: `"locked_packages" | "all"`
+**Default**: `"locked_packages"`
 
 Controls which packages are written to the lockfile:
 
-- `"ensure_installed"`: Only packages listed in `ensure_installed` are written to the lockfile
+- `"locked_packages"`: Only packages listed in `locked_packages` are written to the lockfile
 - `"all"`: All installed packages are written to the lockfile
 
-### `ensure_installed`
+### `locked_packages`
 
 **Type**: `(string | { [1]: string, version: string })[]`
 **Default**: `{}`
@@ -62,7 +62,7 @@ List of packages to manage with mason-lock. Each entry can be:
 **Example**:
 
 ```lua
-ensure_installed = {
+locked_packages = {
   "shfmt",  -- unpinned: uses lockfile version or latest
   { "tree-sitter-cli", version = "v0.25.10" },  -- pinned
 }
@@ -72,7 +72,7 @@ ensure_installed = {
 
 ### Setting Up Automatic Installation
 
-Mason can be configured like so using mason-lock's `ensure_installed`, packages will be automatically installed on Neovim startup if they're missing, and mason-lock will handle ensuring that pinned or locked versions are used:
+Mason can be configured like so using mason-lock's `locked_packages`, packages will be automatically installed on Neovim startup if they're missing, and mason-lock will handle ensuring that pinned or locked versions are used:
 
 ```lua
 {
@@ -81,8 +81,8 @@ Mason can be configured like so using mason-lock's `ensure_installed`, packages 
     {
       "cosmicbuffalo/mason-lock.nvim",
       opts = {
-        lockfile_scope = "ensure_installed",
-        ensure_installed = {
+        lockfile_scope = "locked_packages",
+        locked_packages = {
           "stylua",
           "shfmt",
           { "tree-sitter-cli", version = "v0.25.10" },
@@ -95,9 +95,9 @@ Mason can be configured like so using mason-lock's `ensure_installed`, packages 
     local ml = require("mason-lock")
     local mr = require("mason-registry")
 
-    -- Auto-install packages from ensure_installed
+    -- Auto-install packages from locked_packages
     mr.refresh(function()
-      for _, tool in ipairs(ml.ensure_installed) do
+      for _, tool in ipairs(ml.locked_packages) do
         local tool_name = type(tool) == "table" and tool[1] or tool
         local p = mr.get_package(tool_name)
         if not p:is_installed() and not p:is_installing() then
@@ -117,7 +117,7 @@ The lockfile is automatically updated when:
 - A package is updated
 - A package is uninstalled
 
-The lockfile will only include packages listed in `ensure_installed` when the `lockfile_scope` is set to the default setting. To see all mason-installed packages in the lockfile, set `lockfile_scope` to `"all"`.
+The lockfile will only include packages listed in `locked_packages` when the `lockfile_scope` is set to the default setting. To see all mason-installed packages in the lockfile, set `lockfile_scope` to `"all"`.
 
 ### Manual Commands
 

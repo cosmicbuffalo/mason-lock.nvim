@@ -17,6 +17,13 @@ local function setup_user_commands()
   end, {
     desc = "Re-install Mason packages with the version specified in the lockfile",
   })
+
+  vim.api.nvim_create_user_command("MasonLockDebugToggle", function()
+    config._debug_mode = not config._debug_mode
+    vim.notify("[mason-lock]: Debug mode " .. (config._debug_mode and "enabled" or "disabled"), vim.log.levels.INFO)
+  end, {
+    desc = "Toggle mason-lock debug mode",
+  })
 end
 
 local function setup_registry_listeners()
@@ -56,8 +63,8 @@ end
 -- Expose public API
 M.write_lockfile = lockfile.write
 M.restore_from_lockfile = lockfile.restore
-M.ensure_installed = function()
-  return config.ensure_installed
+M.locked_packages = function()
+  return config.locked_packages
 end
 
 return M
