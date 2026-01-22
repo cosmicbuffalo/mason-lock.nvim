@@ -15,6 +15,33 @@ M.preserve_uninstalled = defaults.preserve_uninstalled
 M._restore_in_progress = false
 M._debug_mode = false
 
+local function translate_deprecated(cfg)
+  if not cfg then
+    return cfg
+  end
+
+  -- Translate ensure_installed -> locked_packages
+  if cfg.ensure_installed and not cfg.locked_packages then
+    vim.notify(
+      "[mason-lock]: 'ensure_installed' is deprecated, use 'locked_packages' instead",
+      vim.log.levels.WARN
+    )
+    cfg.locked_packages = cfg.ensure_installed
+    cfg.ensure_installed = nil
+  end
+
+  -- Translate lockfile_scope = "ensure_installed" -> "locked_packages"
+  if cfg.lockfile_scope == "ensure_installed" then
+    vim.notify(
+      '[mason-lock]: lockfile_scope = "ensure_installed" is deprecated, use "locked_packages" instead',
+      vim.log.levels.WARN
+    )
+    cfg.lockfile_scope = "locked_packages"
+  end
+
+  return cfg
+end
+
 local function validate(cfg)
   if not cfg then
     return true, nil
@@ -30,6 +57,7 @@ local function validate(cfg)
 end
 
 function M.setup(cfg)
+  cfg = translate_deprecated(cfg)
   local ok, err = validate(cfg)
   if not ok then
     vim.notify("[mason-lock]: " .. err, vim.log.levels.ERROR)
