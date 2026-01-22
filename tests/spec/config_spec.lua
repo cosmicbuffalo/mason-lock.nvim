@@ -54,6 +54,42 @@ describe("config", function()
       assert.are.equal(1, #capture.notifications)
       assert.is_truthy(string.find(capture.notifications[1].msg, "Invalid lockfile_scope"))
     end)
+
+    it("should translate deprecated ensure_installed to locked_packages", function()
+      local capture = test_helpers.capture_notifications()
+      local packages = { "lua-language-server", "stylua" }
+
+      config.setup({ ensure_installed = packages })
+
+      capture.restore()
+      assert.are.same(packages, config.locked_packages)
+      assert.are.equal(1, #capture.notifications)
+      assert.is_truthy(string.find(capture.notifications[1].msg, "ensure_installed.*deprecated"))
+    end)
+
+    it("should translate deprecated lockfile_scope ensure_installed to locked_packages", function()
+      local capture = test_helpers.capture_notifications()
+
+      config.setup({ lockfile_scope = "ensure_installed" })
+
+      capture.restore()
+      assert.are.equal("locked_packages", config.lockfile_scope)
+      assert.are.equal(1, #capture.notifications)
+      assert.is_truthy(string.find(capture.notifications[1].msg, "lockfile_scope.*ensure_installed.*deprecated"))
+    end)
+
+    it("should prefer locked_packages over ensure_installed when both provided", function()
+      local capture = test_helpers.capture_notifications()
+      local old_packages = { "stylua" }
+      local new_packages = { "lua-language-server", "stylua" }
+
+      config.setup({ ensure_installed = old_packages, locked_packages = new_packages })
+
+      capture.restore()
+      assert.are.same(new_packages, config.locked_packages)
+      -- No deprecation warning since locked_packages was provided
+      assert.are.equal(0, #capture.notifications)
+    end)
   end)
 
   describe("get_pinned_version", function()
