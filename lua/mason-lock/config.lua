@@ -22,10 +22,7 @@ local function translate_deprecated(cfg)
 
   -- Translate ensure_installed -> locked_packages
   if cfg.ensure_installed and not cfg.locked_packages then
-    vim.notify(
-      "[mason-lock]: 'ensure_installed' is deprecated, use 'locked_packages' instead",
-      vim.log.levels.WARN
-    )
+    vim.notify("[mason-lock]: 'ensure_installed' is deprecated, use 'locked_packages' instead", vim.log.levels.WARN)
     cfg.locked_packages = cfg.ensure_installed
     cfg.ensure_installed = nil
   end
