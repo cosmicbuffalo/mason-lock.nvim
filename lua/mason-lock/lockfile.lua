@@ -94,7 +94,10 @@ local function collect_entries(callback)
   if config.preserve_uninstalled then
     local merge_existing = function(existing_data)
       if config._debug_mode then
-        vim.notify("[mason-lock DEBUG] merge_existing called, existing_data: " .. vim.inspect(existing_data), vim.log.levels.DEBUG)
+        vim.notify(
+          "[mason-lock DEBUG] merge_existing called, existing_data: " .. vim.inspect(existing_data),
+          vim.log.levels.DEBUG
+        )
         vim.notify("[mason-lock DEBUG] installed_names: " .. vim.inspect(installed_names), vim.log.levels.DEBUG)
       end
       if existing_data then
@@ -103,7 +106,10 @@ local function collect_entries(callback)
             -- Check lockfile_scope for uninstalled packages too
             local should_include = config.lockfile_scope ~= "locked_packages" or is_in_locked_packages(pkg_name)
             if config._debug_mode then
-              vim.notify("[mason-lock DEBUG] pkg: " .. pkg_name .. ", should_include: " .. tostring(should_include), vim.log.levels.DEBUG)
+              vim.notify(
+                "[mason-lock DEBUG] pkg: " .. pkg_name .. ", should_include: " .. tostring(should_include),
+                vim.log.levels.DEBUG
+              )
             end
             if should_include then
               table.insert(entries, { name = pkg_name, version = pkg_version })
