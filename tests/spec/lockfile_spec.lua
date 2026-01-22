@@ -23,6 +23,7 @@ describe("lockfile", function()
     config.lockfile_path = lockfile_path
     config.lockfile_scope = "all"
     config.ensure_installed = {}
+    config.preserve_uninstalled = true
     config._restore_in_progress = false
 
     cache = require("mason-lock.cache")
@@ -150,6 +151,123 @@ describe("lockfile", function()
       assert.are.equal(1, call_count)
 
       lockfile.write = original_write
+    end)
+  end)
+
+  describe("preserve_uninstalled", function()
+    it("should preserve entries for uninstalled packages by default", function()
+      -- Write initial lockfile with a package
+      local initial_content = '{"old-package": "1.0.0"}'
+      test_helpers.write_file(lockfile_path, initial_content)
+
+      -- Load the cache with existing data
+      cache.set({ ["old-package"] = "1.0.0" })
+
+      -- Add a new installed package (old-package is not installed)
+      mock_registry._add_mock_package("new-package", "2.0.0")
+
+      local done = false
+      lockfile.write(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_truthy(string.find(content, "new%-package"))
+      assert.is_truthy(string.find(content, "old%-package"))
+    end)
+
+    it("should update version for installed packages while preserving uninstalled", function()
+      -- Set up cache with both packages
+      cache.set({
+        ["installed-pkg"] = "1.0.0",
+        ["uninstalled-pkg"] = "2.0.0",
+      })
+
+      -- Only installed-pkg is actually installed, with a new version
+      mock_registry._add_mock_package("installed-pkg", "1.1.0")
+
+      local done = false
+      lockfile.write(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+
+      local content = test_helpers.read_file(lockfile_path)
+      -- installed-pkg should have new version
+      assert.is_truthy(string.find(content, '"installed%-pkg": "1.1.0"'))
+      -- uninstalled-pkg should be preserved with old version
+      assert.is_truthy(string.find(content, '"uninstalled%-pkg": "2.0.0"'))
+    end)
+
+    it("should not preserve uninstalled when preserve_uninstalled is false", function()
+      config.preserve_uninstalled = false
+
+      -- Set up cache with an uninstalled package
+      cache.set({ ["old-package"] = "1.0.0" })
+
+      -- Add a new installed package
+      mock_registry._add_mock_package("new-package", "2.0.0")
+
+      local done = false
+      lockfile.write(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_truthy(string.find(content, "new%-package"))
+      assert.is_falsy(string.find(content, "old%-package"))
+    end)
+
+    it("should work on first write with no existing lockfile", function()
+      -- No existing lockfile or cache
+      cache.invalidate()
+
+      mock_registry._add_mock_package("first-package", "1.0.0")
+
+      local done = false
+      lockfile.write(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_truthy(string.find(content, "first%-package"))
+    end)
+
+    it("should fall back to reading lockfile when cache is not loaded", function()
+      -- Write lockfile but don't load cache
+      local initial_content = '{"cached-pkg": "1.0.0"}'
+      test_helpers.write_file(lockfile_path, initial_content)
+      cache.invalidate()
+
+      mock_registry._add_mock_package("new-pkg", "2.0.0")
+
+      local done = false
+      lockfile.write(function()
+        done = true
+      end)
+
+      assert.is_true(test_helpers.wait_for(function()
+        return done
+      end, 1000))
+
+      local content = test_helpers.read_file(lockfile_path)
+      assert.is_truthy(string.find(content, "new%-pkg"))
+      assert.is_truthy(string.find(content, "cached%-pkg"))
     end)
   end)
 

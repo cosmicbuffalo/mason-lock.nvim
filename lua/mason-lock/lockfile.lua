@@ -69,13 +69,7 @@ end
 local function collect_entries(callback)
   local packages = registry.get_installed_packages()
   local entries = {}
-  local pending = 0
-  local total = #packages
-
-  if total == 0 then
-    callback({})
-    return
-  end
+  local installed_names = {} -- Track installed package names
 
   for _, package in pairs(packages) do
     if package:is_installed() then
@@ -83,7 +77,6 @@ local function collect_entries(callback)
       local should_include = config.lockfile_scope ~= "ensure_installed" or is_in_ensure_installed(package.name)
 
       if should_include then
-        pending = pending + 1
         -- Get version - this should be synchronous for installed packages
         local version = package:get_installed_version()
         if version then
@@ -91,12 +84,42 @@ local function collect_entries(callback)
             name = package.name,
             version = version,
           })
+          installed_names[package.name] = true
         end
       end
     end
   end
 
-  -- Sort and return
+  -- Preserve uninstalled entries from existing lockfile
+  if config.preserve_uninstalled then
+    local merge_existing = function(existing_data)
+      if existing_data then
+        for pkg_name, pkg_version in pairs(existing_data) do
+          if not installed_names[pkg_name] then
+            -- Check lockfile_scope for uninstalled packages too
+            local should_include = config.lockfile_scope ~= "ensure_installed" or is_in_ensure_installed(pkg_name)
+            if should_include then
+              table.insert(entries, { name = pkg_name, version = pkg_version })
+            end
+          end
+        end
+      end
+      entries = sort_entries(entries)
+      callback(entries)
+    end
+
+    if cache.is_loaded() then
+      merge_existing(cache.get())
+    else
+      -- Fallback: read lockfile directly
+      M.read(function(err, data)
+        merge_existing(err and nil or data)
+      end)
+    end
+    return
+  end
+
+  -- Original path when preserve_uninstalled is false
   entries = sort_entries(entries)
   callback(entries)
 end

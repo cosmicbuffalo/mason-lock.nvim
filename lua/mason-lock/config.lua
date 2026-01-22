@@ -4,11 +4,13 @@ local defaults = {
   lockfile_path = vim.fn.stdpath("config") .. "/mason-lock.json",
   lockfile_scope = "ensure_installed",
   ensure_installed = {},
+  preserve_uninstalled = true,
 }
 
 M.lockfile_path = defaults.lockfile_path
 M.lockfile_scope = defaults.lockfile_scope
 M.ensure_installed = defaults.ensure_installed
+M.preserve_uninstalled = defaults.preserve_uninstalled
 -- Internal state
 M._restore_in_progress = false
 
@@ -43,6 +45,9 @@ function M.setup(cfg)
   end
   if cfg.ensure_installed then
     M.ensure_installed = cfg.ensure_installed
+  end
+  if cfg.preserve_uninstalled ~= nil then
+    M.preserve_uninstalled = cfg.preserve_uninstalled
   end
 end
 
