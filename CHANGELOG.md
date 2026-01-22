@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.0] - 2026-01-22
+
+### Added
+- **Preserve uninstalled packages in lockfile**: New `preserve_uninstalled` config option (default: `true`)
+  - When enabled, uninstalled packages remain in the lockfile with their last known version
+  - Works with both `lockfile_scope = "all"` and `lockfile_scope = "locked_packages"`
+- **Debug mode**: New `:MasonLockDebugToggle` command for troubleshooting
+  - Toggles verbose debug logging for lockfile operations
+  - Shows cache state, existing data, and entry merging details
+
+### Changed
+- **Renamed `ensure_installed` to `locked_packages`**: Config options and internals renamed for clarity
+
+### Breaking Changes
+- **Config option renamed**: `ensure_installed` → `locked_packages`
+- **Scope value renamed**: `lockfile_scope = "ensure_installed"` → `lockfile_scope = "locked_packages"`
+
 ## [v0.1.0] - 2026-01-21
 
 Major refactor introducing a fully asynchronous, non-blocking architecture with fidget.nvim integration for visual progress feedback.

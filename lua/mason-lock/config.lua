@@ -2,15 +2,18 @@ local M = {}
 
 local defaults = {
   lockfile_path = vim.fn.stdpath("config") .. "/mason-lock.json",
-  lockfile_scope = "ensure_installed",
-  ensure_installed = {},
+  lockfile_scope = "locked_packages",
+  locked_packages = {},
+  preserve_uninstalled = true,
 }
 
 M.lockfile_path = defaults.lockfile_path
 M.lockfile_scope = defaults.lockfile_scope
-M.ensure_installed = defaults.ensure_installed
+M.locked_packages = defaults.locked_packages
+M.preserve_uninstalled = defaults.preserve_uninstalled
 -- Internal state
 M._restore_in_progress = false
+M._debug_mode = false
 
 local function validate(cfg)
   if not cfg then
@@ -18,8 +21,8 @@ local function validate(cfg)
   end
 
   if cfg.lockfile_scope then
-    if cfg.lockfile_scope ~= "ensure_installed" and cfg.lockfile_scope ~= "all" then
-      return false, 'Invalid lockfile_scope "' .. cfg.lockfile_scope .. '". Must be "ensure_installed" or "all"'
+    if cfg.lockfile_scope ~= "locked_packages" and cfg.lockfile_scope ~= "all" then
+      return false, 'Invalid lockfile_scope "' .. cfg.lockfile_scope .. '". Must be "locked_packages" or "all"'
     end
   end
 
@@ -41,13 +44,16 @@ function M.setup(cfg)
   if cfg.lockfile_scope then
     M.lockfile_scope = cfg.lockfile_scope
   end
-  if cfg.ensure_installed then
-    M.ensure_installed = cfg.ensure_installed
+  if cfg.locked_packages then
+    M.locked_packages = cfg.locked_packages
+  end
+  if cfg.preserve_uninstalled ~= nil then
+    M.preserve_uninstalled = cfg.preserve_uninstalled
   end
 end
 
 function M.get_pinned_version(package_name)
-  for _, pkg in ipairs(M.ensure_installed) do
+  for _, pkg in ipairs(M.locked_packages) do
     if type(pkg) == "table" and pkg[1] == package_name and pkg.version then
       return pkg.version
     end
