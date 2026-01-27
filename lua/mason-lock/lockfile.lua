@@ -148,7 +148,8 @@ end
 
 --- Write lockfile asynchronously
 ---@param callback fun(err: string|nil)|nil Optional callback
-function M.write(callback)
+---@param opts table|nil Options: { silent = boolean }
+function M.write(callback, opts)
   if config._restore_in_progress then
     if callback then
       callback(nil)
@@ -156,7 +157,7 @@ function M.write(callback)
     return
   end
 
-  local progress = notify.write_progress()
+  local progress = notify.write_progress(opts)
 
   collect_entries(function(entries)
     local content = format(entries)
@@ -187,7 +188,8 @@ end
 
 --- Schedule a debounced write
 ---@param callback fun(err: string|nil)|nil Optional callback
-function M.schedule_write(callback)
+---@param opts table|nil Options: { silent = boolean }
+function M.schedule_write(callback, opts)
   -- Cancel any pending timer
   if _debounce_timer then
     uv.timer_stop(_debounce_timer)
@@ -204,14 +206,15 @@ function M.schedule_write(callback)
         uv.close(_debounce_timer)
         _debounce_timer = nil
       end
-      M.write(callback)
+      M.write(callback, opts)
     end)
   end)
 end
 
 --- Restore packages from lockfile asynchronously
 ---@param callback fun(err: string|nil)|nil Optional callback
-function M.restore(callback)
+---@param opts table|nil Options: { silent = boolean }
+function M.restore(callback, opts)
   M.read(function(err, lock_data)
     if err then
       notify.notify("Mason lockfile does not exist or is invalid", vim.log.levels.ERROR)
@@ -244,7 +247,7 @@ function M.restore(callback)
     local finished_count = 0
     local failed_packages = {}
 
-    local progress = notify.restore_progress(total)
+    local progress = notify.restore_progress(total, opts)
 
     for package_name, package_version in pairs(lock_data) do
       local ok_pkg, pkg = pcall(registry.get_package, package_name)
