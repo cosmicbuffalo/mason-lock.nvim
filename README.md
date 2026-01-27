@@ -26,6 +26,7 @@ This happens transparently - you don't need to change how you use Mason.
       "shfmt",  -- unpinned: uses lockfile version or latest
       { "tree-sitter-cli", version = "v0.25.10" },  -- pinned
     },
+    silent = false, -- default: suppress automatic progress notifications
   },
 }
 ```
@@ -67,6 +68,13 @@ locked_packages = {
   { "tree-sitter-cli", version = "v0.25.10" },  -- pinned
 }
 ```
+
+### `silent`
+
+**Type**: `boolean`
+**Default**: `false`
+
+When enabled, suppresses fidget.nvim progress notifications for automatic lockfile writes (triggered by package install/uninstall events). User commands (`:MasonLock`, `:MasonLockRestore`) will still show progress notifications. Errors are always displayed regardless of this setting.
 
 ## Usage
 
