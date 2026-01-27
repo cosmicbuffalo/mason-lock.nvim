@@ -55,11 +55,11 @@ function M.progress_start(title, message, opts)
     })
     return {
       _fidget_handle = handle,
-      report = function(self, opts)
+      report = function(self, report_opts)
         if self._fidget_handle then
           self._fidget_handle:report({
-            message = opts.message,
-            percentage = opts.percentage,
+            message = report_opts.message,
+            percentage = report_opts.percentage,
           })
         end
       end,
