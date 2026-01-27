@@ -7,13 +7,13 @@ local M = {}
 
 local function setup_user_commands()
   vim.api.nvim_create_user_command("MasonLock", function()
-    lockfile.write()
+    lockfile.write(nil, { silent = false })
   end, {
     desc = "Write current package versions to the Mason lockfile",
   })
 
   vim.api.nvim_create_user_command("MasonLockRestore", function()
-    lockfile.restore()
+    lockfile.restore(nil, { silent = false })
   end, {
     desc = "Re-install Mason packages with the version specified in the lockfile",
   })
@@ -31,14 +31,14 @@ local function setup_registry_listeners()
   registry:on(
     "package:install:success",
     vim.schedule_wrap(function(_pkg, _handle)
-      lockfile.schedule_write()
+      lockfile.schedule_write(nil, { silent = config.silent })
     end)
   )
 
   registry:on(
     "package:uninstall:success",
     vim.schedule_wrap(function(_pkg, _handle)
-      lockfile.schedule_write()
+      lockfile.schedule_write(nil, { silent = config.silent })
     end)
   )
 end

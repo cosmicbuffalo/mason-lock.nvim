@@ -19,11 +19,31 @@ function M.notify(msg, level)
   vim.notify("[mason-lock]: " .. msg, level)
 end
 
+--- Create a silent (no-op) progress handle
+---@return table A handle with no-op report(), finish(), and cancel() methods (cancel still shows errors)
+local function silent_handle()
+  return {
+    report = function(_, _) end,
+    finish = function(_, _) end,
+    cancel = function(_, error_message)
+      if error_message then
+        M.notify(error_message, vim.log.levels.ERROR)
+      end
+    end,
+  }
+end
+
 --- Create a progress handle for long-running operations
 ---@param title string The title for the progress task
 ---@param message string|nil Initial message
+---@param opts table|nil Options: { silent = boolean }
 ---@return table A handle with report() and finish() methods
-function M.progress_start(title, message)
+function M.progress_start(title, message, opts)
+  opts = opts or {}
+  if opts.silent then
+    return silent_handle()
+  end
+
   local has_fidget, fidget = get_fidget()
 
   if has_fidget then
@@ -35,11 +55,11 @@ function M.progress_start(title, message)
     })
     return {
       _fidget_handle = handle,
-      report = function(self, opts)
+      report = function(self, report_opts)
         if self._fidget_handle then
           self._fidget_handle:report({
-            message = opts.message,
-            percentage = opts.percentage,
+            message = report_opts.message,
+            percentage = report_opts.percentage,
           })
         end
       end,
@@ -85,9 +105,10 @@ end
 
 --- Create a progress handle specifically for restore operations
 ---@param total_packages number Total number of packages to restore
+---@param opts table|nil Options: { silent = boolean }
 ---@return table A handle with update_progress(), finish(), and cancel() methods
-function M.restore_progress(total_packages)
-  local handle = M.progress_start("Lockfile Restore", string.format("Restoring %d packages...", total_packages))
+function M.restore_progress(total_packages, opts)
+  local handle = M.progress_start("Lockfile Restore", string.format("Restoring %d packages...", total_packages), opts)
   local completed = 0
 
   return {
@@ -110,9 +131,10 @@ function M.restore_progress(total_packages)
 end
 
 --- Create a progress handle for write operations
+---@param opts table|nil Options: { silent = boolean }
 ---@return table A handle with finish() and cancel() methods
-function M.write_progress()
-  return M.progress_start("Lockfile Write", "Writing lockfile...")
+function M.write_progress(opts)
+  return M.progress_start("Lockfile Write", "Writing lockfile...", opts)
 end
 
 return M

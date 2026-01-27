@@ -5,12 +5,14 @@ local defaults = {
   lockfile_scope = "locked_packages",
   locked_packages = {},
   preserve_uninstalled = true,
+  silent = false,
 }
 
 M.lockfile_path = defaults.lockfile_path
 M.lockfile_scope = defaults.lockfile_scope
 M.locked_packages = defaults.locked_packages
 M.preserve_uninstalled = defaults.preserve_uninstalled
+M.silent = defaults.silent
 -- Internal state
 M._restore_in_progress = false
 M._debug_mode = false
@@ -74,6 +76,9 @@ function M.setup(cfg)
   end
   if cfg.preserve_uninstalled ~= nil then
     M.preserve_uninstalled = cfg.preserve_uninstalled
+  end
+  if cfg.silent ~= nil then
+    M.silent = cfg.silent
   end
 end
 
